@@ -70,7 +70,7 @@ async function sendEmail(userId, subject, message) {
 
   const mailOptions = {
     from: 'postmaster@demo.harishnetcloud.site', // Replace with your email address
-    to: 'harishrao9121@gmail.com', // Replace with the user's email
+    to: 'takkallapally.h@northeastern.edu', // Replace with the user's email
     subject,
     text: message,
   };
