@@ -11,10 +11,11 @@ const GCS_BUCKET_NAME = process.env.GCS_BUCKET_NAME;
 const DYNAMODB_TABLE_NAME = process.env.DYNAMODB_TABLE_NAME;
 
 exports.handler = async (event, context) => {
+  console.log('Lambda function triggered by SNS:', JSON.stringify(event));
   try {
     const snsMessage = JSON.parse(event.Records[0].Sns.Message);
 
-    const { userId, assignmentId, releaseUrl } = snsMessage;
+    const { userId, assignment_Id, submissionUrl } = snsMessage;
 
     // Download the release from the provided URL
     const releaseBuffer = await downloadRelease(releaseUrl);
@@ -25,13 +26,13 @@ exports.handler = async (event, context) => {
     }
 
     // Store the release in Google Cloud Storage
-    const objectPath = await storeInGCS(userId, assignmentId, releaseBuffer);
+    const objectPath = await storeInGCS(userId, assignment_Id, submissionUrl);
 
     // Email the user with the status and GCS path
     await sendEmail(userId, 'Success', `Release stored in GCS at ${objectPath}`);
 
     // Track the email in DynamoDB
-    await trackEmail(userId, assignmentId, objectPath);
+    await trackEmail(userId, assignment_Id, objectPath);
 
     return { statusCode: 200, body: 'Success' };
   } catch (error) {
@@ -40,9 +41,9 @@ exports.handler = async (event, context) => {
   }
 };
 
-async function downloadRelease(releaseUrl) {
+async function downloadRelease(submissionUrl) {
   try {
-    const response = await axios.get(releaseUrl, { responseType: 'arraybuffer' });
+    const response = await axios.get(submissionUrl, { responseType: 'arraybuffer' });
     return response.data;
   } catch (error) {
     console.error('Error downloading release:', error);
@@ -50,8 +51,8 @@ async function downloadRelease(releaseUrl) {
   }
 }
 
-async function storeInGCS(userId, assignmentId, releaseBuffer) {
-  const objectPath = `${userId}/${assignmentId}/release.zip`;
+async function storeInGCS(userId, assignment_Id, releaseBuffer) {
+  const objectPath = `${userId}/${assignment_Id}/release.zip`;
   await storage.bucket(GCS_BUCKET_NAME).file(objectPath).save(releaseBuffer);
   return `gs://${GCS_BUCKET_NAME}/${objectPath}`;
 }
@@ -84,12 +85,12 @@ async function sendEmail(userId, subject, message) {
   }
 }
 
-async function trackEmail(userId, assignmentId, objectPath) {
+async function trackEmail(userId, assignment_Id, objectPath) {
   const params = {
     TableName: DYNAMODB_TABLE_NAME,
     Item: {
       userId: { S: userId },
-      assignmentId: { S: assignmentId },
+      assignmentId: { S: assignment_Id },
       objectPath: { S: objectPath },
       timestamp: { N: `${Math.floor(new Date().getTime() / 1000)}` },
     },
